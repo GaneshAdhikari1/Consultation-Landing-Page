@@ -12,24 +12,47 @@ const steps = [
   "Keep a few notes ready about your business, your marketing, and where you feel stuck.",
 ];
 
-function getVimeoEmbedUrl(rawUrl?: string) {
+const temporaryVideoUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+
+type VideoSource =
+  | { kind: "file"; url: string }
+  | { kind: "embed"; url: string };
+
+function getVideoSource(rawUrl?: string): VideoSource | null {
   if (!rawUrl) return null;
   try {
     const url = new URL(rawUrl);
-    if (!url.hostname.endsWith("vimeo.com")) return null;
-    const videoId = url.pathname.split("/").find((segment) => /^\d+$/.test(segment));
-    return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+
+    if (/\.(mp4|webm|ogg)$/i.test(url.pathname)) {
+      return { kind: "file", url: url.toString() };
+    }
+
+    if (url.hostname.endsWith("vimeo.com")) {
+      const videoId = url.pathname.split("/").find((segment) => /^\d+$/.test(segment));
+      return videoId ? { kind: "embed", url: `https://player.vimeo.com/video/${videoId}` } : null;
+    }
+
+    if (url.hostname === "youtu.be" || url.hostname.endsWith("youtube.com")) {
+      const videoId = url.hostname === "youtu.be"
+        ? url.pathname.split("/").filter(Boolean)[0]
+        : url.searchParams.get("v") ?? url.pathname.match(/^\/embed\/([^/]+)/)?.[1];
+      return videoId ? { kind: "embed", url: `https://www.youtube.com/embed/${videoId}` } : null;
+    }
+
+    return null;
   } catch {
     return null;
   }
 }
 
 export default function ThankYouPage() {
-  const vimeoUrl = getVimeoEmbedUrl(process.env.NEXT_PUBLIC_VIMEO_URL);
+  const videoSource = getVideoSource(
+    process.env.NEXT_PUBLIC_VIDEO_URL ?? temporaryVideoUrl,
+  );
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
   const validWhatsappNumber = whatsappNumber && /^\d+$/.test(whatsappNumber) ? whatsappNumber : null;
 
-  if (!vimeoUrl) console.warn("NEXT_PUBLIC_VIMEO_URL is missing or invalid; the Vimeo placeholder is shown.");
+  if (!videoSource) console.warn("NEXT_PUBLIC_VIDEO_URL is missing or invalid; the video placeholder is shown.");
   if (!validWhatsappNumber) console.warn("NEXT_PUBLIC_WHATSAPP_NUMBER is missing or invalid; the WhatsApp button is hidden.");
 
   const whatsappMessage = "Hi Digital Ganesh, I just submitted the form for a free digital marketing consultation. Please help me confirm my call and share the next steps.";
@@ -67,21 +90,32 @@ export default function ThankYouPage() {
             This video explains what to expect and how to get the most value from your free consultation.
           </p>
 
-          {vimeoUrl ? (
+          {videoSource ? (
             <div className="mt-7 aspect-video w-full overflow-hidden rounded-3xl border border-brand-border bg-deep-navy shadow-[0_20px_60px_rgb(6_43_80/14%)]">
-              <iframe
-                src={vimeoUrl}
-                title="What to expect from your Digital Ganesh consultation"
-                className="h-full w-full"
-                allow="fullscreen; picture-in-picture"
-                allowFullScreen
-              />
+              {videoSource.kind === "file" ? (
+                <video
+                  src={videoSource.url}
+                  title="What to expect from your Digital Ganesh consultation"
+                  className="h-full w-full bg-black object-contain"
+                  controls
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <iframe
+                  src={videoSource.url}
+                  title="What to expect from your Digital Ganesh consultation"
+                  className="h-full w-full"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
             </div>
           ) : (
             <div className="mt-7 flex aspect-video w-full flex-col items-center justify-center rounded-3xl border border-dashed border-teal/35 bg-white/75 px-6 text-center shadow-[0_16px_44px_rgb(6_43_80/7%)]">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-light-teal text-2xl text-dark-teal" aria-hidden="true">▶</span>
               <p className="mt-4 font-bold text-navy">The consultation video will appear here.</p>
-              <p className="mt-1 text-sm text-muted-ink">Add the Vimeo link to activate the player.</p>
+              <p className="mt-1 text-sm text-muted-ink">Add a video link to activate the player.</p>
             </div>
           )}
         </section>
