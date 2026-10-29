@@ -12,7 +12,8 @@ const steps = [
   "Keep a few notes ready about your business, your marketing, and where you feel stuck.",
 ];
 
-const temporaryVideoUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+const defaultVideoUrl = "https://vimeo.com/1084537";
+const defaultWhatsappNumber = "9779769208749";
 
 type VideoSource =
   | { kind: "file"; url: string }
@@ -47,9 +48,11 @@ function getVideoSource(rawUrl?: string): VideoSource | null {
 
 export default function ThankYouPage() {
   const videoSource = getVideoSource(
-    process.env.NEXT_PUBLIC_VIDEO_URL ?? temporaryVideoUrl,
+    process.env.NEXT_PUBLIC_VIMEO_URL
+      ?? process.env.NEXT_PUBLIC_VIDEO_URL
+      ?? defaultVideoUrl,
   );
-  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? defaultWhatsappNumber;
   const validWhatsappNumber = whatsappNumber && /^\d+$/.test(whatsappNumber) ? whatsappNumber : null;
 
   if (!videoSource) console.warn("NEXT_PUBLIC_VIDEO_URL is missing or invalid; the video placeholder is shown.");
