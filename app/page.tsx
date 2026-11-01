@@ -8,8 +8,8 @@ import { Process } from "@/components/Process";
 export default function Home() {
   return (
     <main>
-      <div className="hero-surface">
-        <Header />
+      <div className="hero-surface-dark">
+        <Header variant="dark" />
         <Hero />
       </div>
       <Problem />
