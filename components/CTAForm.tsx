@@ -83,6 +83,33 @@ export function CTAForm() {
         setSubmitError("");
       }
     };
+    const positionCaptcha = () => {
+      const form = formRef.current;
+      const footer = form?.querySelector<HTMLElement>('[data-ff-el="footer"]');
+      const submit = form?.querySelector<HTMLButtonElement>('[data-ff-el="submit"]');
+      if (!form || !footer || !submit) return;
+
+      const captcha = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).find((checkbox) => {
+        const labelText = Array.from(checkbox.labels ?? []).map((label) => label.textContent ?? "").join(" ");
+        return /not a robot/i.test(`${labelText} ${checkbox.parentElement?.textContent ?? ""}`);
+      });
+      if (!captcha) return;
+
+      let captchaContainer: HTMLElement = captcha;
+      while (captchaContainer.parentElement && captchaContainer.parentElement !== footer && captchaContainer.parentElement !== form) {
+        captchaContainer = captchaContainer.parentElement;
+      }
+      if (!captchaContainer.classList.contains("flodesk-captcha")) {
+        captchaContainer.classList.add("flodesk-captcha");
+      }
+      if (captchaContainer.parentElement !== footer || captchaContainer.nextElementSibling !== submit) {
+        footer.insertBefore(captchaContainer, submit);
+      }
+      if (submit.textContent !== "Complete verification above") {
+        submit.textContent = "Complete verification above";
+      }
+      if (submissionTimeoutRef.current) clearTimeout(submissionTimeoutRef.current);
+    };
     window.addEventListener("formHandled", markReady);
 
     window.fd("form:handle", {
@@ -113,6 +140,7 @@ export function CTAForm() {
     const observer = root
       ? new MutationObserver(() => {
           markReady();
+          positionCaptcha();
           const stage = root.dataset.ffStage;
           if (stage === "success") {
             if (submissionTimeoutRef.current) clearTimeout(submissionTimeoutRef.current);
@@ -124,8 +152,14 @@ export function CTAForm() {
           }
         })
       : null;
-    observer?.observe(root!, { attributes: true, attributeFilter: ["data-ff-stage", "data-ff-handle-status"] });
+    observer?.observe(root!, {
+      attributes: true,
+      attributeFilter: ["data-ff-stage", "data-ff-handle-status"],
+      childList: true,
+      subtree: true,
+    });
     markReady();
+    positionCaptcha();
 
     return () => {
       window.removeEventListener("formHandled", markReady);

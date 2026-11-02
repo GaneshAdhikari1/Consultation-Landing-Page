@@ -159,6 +159,14 @@ textarea:focus-visible {
 
 .primary-cta:disabled { cursor: wait; opacity: 0.7; transform: none; }
 
+.flodesk-captcha {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
 .section-shell {
   width: min(100% - 2rem, 70rem);
   margin-inline: auto;
