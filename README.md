@@ -9,6 +9,8 @@ A focused Next.js landing page and Thank You page for the Digital Ganesh free ma
 3. Run `npm run dev`.
 4. Open the local URL printed in the terminal.
 
+For a background preview that stays running after the terminal closes, use `npm run dev:background`. The launcher reuses an existing server when possible and writes logs to `.local-preview/`.
+
 ## Vercel deployment
 
 1. Push this project to a Git repository and import it in Vercel.
