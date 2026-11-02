@@ -1,11 +1,24 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { submitLead } from "@/lib/submitLead";
 import { validateField, validateLead } from "@/lib/validation";
 import type { LeadData, LeadErrors, LeadField } from "@/lib/validation";
+
+const flodeskFormId = "6ae708aee178d975eb35d0ac";
+const flodeskRootSelector = `.ff-${flodeskFormId}`;
+const flodeskSubmitUrl = `https://form.flodesk.com/forms/${flodeskFormId}/submit`;
+const flodeskConfig = "eyJ0cmlnZ2VyIjp7Im1vZGUiOiJpbW1lZGlhdGVseSIsInZhbHVlIjowfSwib25TdWNjZXNzIjp7Im1vZGUiOiJyZWRpcmVjdCIsIm1lc3NhZ2UiOiIiLCJyZWRpcmVjdFVybCI6Imh0dHBzOi8vY29uc3VsdGF0aW9uLmdhbmVzaGFkaGlrYXJpMS5jb20ubnAvdGhhbmsteW91In0sImNvaSI6dHJ1ZSwic2hvd0ZvclJldHVyblZpc2l0b3JzIjp0cnVlLCJub3RpZmljYXRpb24iOnRydWUsImdkcHIiOnsiYWNjZXB0c01hcmtldGluZyI6ZmFsc2UsInByaXZhY3lQb2xpY3kiOnsiZW5hYmxlZCI6ZmFsc2UsIm1hbmRhdG9yeSI6ZmFsc2V9fSwidHJhY2tpbmdDb25maWciOnsibWV0YVBpeGVsSWQiOiIiLCJjb29raWVCYW5uZXJFbmFibGVkIjpmYWxzZSwiZ29vZ2xlQW5hbHl0aWNzSWQiOiIifX0=";
+
+type FlodeskFunction = ((...args: unknown[]) => void) & { q?: unknown[][] };
+
+declare global {
+  interface Window {
+    FlodeskObject?: string;
+    fd?: FlodeskFunction;
+  }
+}
 
 const initialData: LeadData = {
   fullName: "",
@@ -20,6 +33,9 @@ const highlights = ["One-to-One Consultation", "Customized Strategy for Your Bus
 
 type FieldConfig = {
   name: LeadField;
+  flodeskId: string;
+  flodeskName: string;
+  flodeskTab: string;
   label: string;
   placeholder: string;
   type?: string;
@@ -28,20 +44,70 @@ type FieldConfig = {
 };
 
 const fields: FieldConfig[] = [
-  { name: "fullName", label: "Full Name", placeholder: "Your full name", required: true, autoComplete: "name" },
-  { name: "email", label: "Active Email", placeholder: "you@example.com", type: "email", required: true, autoComplete: "email" },
-  { name: "whatsapp", label: "WhatsApp Number", placeholder: "+977 98XXXXXXXX", type: "tel", required: true, autoComplete: "tel" },
-  { name: "businessName", label: "Business Name", placeholder: "Your business name", required: true, autoComplete: "organization" },
-  { name: "website", label: "Website or Facebook URL", placeholder: "yourbusiness.com or facebook.com/yourpage", type: "url" },
+  { name: "fullName", flodeskId: "firstName", flodeskName: "firstName", flodeskTab: "firstName::email", label: "Full Name", placeholder: "Your full name", required: true, autoComplete: "name" },
+  { name: "email", flodeskId: "email", flodeskName: "email", flodeskTab: "email:firstName:fields.", label: "Active Email", placeholder: "you@example.com", type: "email", required: true, autoComplete: "email" },
+  { name: "whatsapp", flodeskId: "cOweKA8tCR", flodeskName: "fields.", flodeskTab: "fields.:email:fields.", label: "WhatsApp Number", placeholder: "+977 98XXXXXXXX", type: "tel", required: true, autoComplete: "tel" },
+  { name: "businessName", flodeskId: "7Z8bWaojpg", flodeskName: "fields.", flodeskTab: "fields.:email:fields.", label: "Business Name", placeholder: "Your business name", required: true, autoComplete: "organization" },
+  { name: "website", flodeskId: "YjkrKLUYYf", flodeskName: "fields.websiteOrFacebookUrl", flodeskTab: "fields.websiteOrFacebookUrl:fields.:fields.anythingYouWantToSay", label: "Website or Facebook URL", placeholder: "yourbusiness.com or facebook.com/yourpage", type: "url" },
 ];
 
 export function CTAForm() {
   const router = useRouter();
+  const rootRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<LeadErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    window.FlodeskObject = "fd";
+
+    if (!window.fd) {
+      const fd: FlodeskFunction = (...args: unknown[]) => {
+        fd.q = fd.q ?? [];
+        fd.q.push(args);
+      };
+      window.fd = fd;
+    }
+
+    const cacheVersion = Math.floor(Date.now() / 120000) * 60;
+    if (!document.querySelector('script[data-flodesk-universal="module"]')) {
+      const moduleScript = document.createElement("script");
+      moduleScript.async = true;
+      moduleScript.type = "module";
+      moduleScript.src = `https://assets.flodesk.com/universal.mjs?v=${cacheVersion}`;
+      moduleScript.dataset.flodeskUniversal = "module";
+      document.head.appendChild(moduleScript);
+
+      const legacyScript = document.createElement("script");
+      legacyScript.async = true;
+      legacyScript.noModule = true;
+      legacyScript.src = `https://assets.flodesk.com/universal.js?v=${cacheVersion}`;
+      legacyScript.dataset.flodeskUniversal = "legacy";
+      document.head.appendChild(legacyScript);
+    }
+
+    window.fd("form:handle", {
+      formId: flodeskFormId,
+      rootEl: flodeskRootSelector,
+    });
+
+    const root = rootRef.current;
+    if (!root) return;
+
+    const observer = new MutationObserver(() => {
+      const stage = root.dataset.ffStage;
+      if (stage === "success") {
+        router.push("/thank-you");
+      } else if (stage === "error") {
+        setIsSubmitting(false);
+        setSubmitError("Flodesk could not save your information. Please try again.");
+      }
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["data-ff-stage"] });
+    return () => observer.disconnect();
+  }, [router]);
 
   function updateField(field: LeadField, value: string) {
     setData((current) => ({ ...current, [field]: value }));
@@ -54,9 +120,11 @@ export function CTAForm() {
     setErrors((current) => ({ ...current, [field]: validateField(field, data[field]) }));
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSubmitting) return;
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (isSubmitting) {
+      event.preventDefault();
+      return;
+    }
 
     const nextErrors = validateLead(data);
     setErrors(nextErrors);
@@ -64,23 +132,28 @@ export function CTAForm() {
     const firstInvalid = (Object.keys(data) as LeadField[]).find((field) => nextErrors[field]);
 
     if (firstInvalid) {
-      const element = formRef.current?.elements.namedItem(firstInvalid);
+      event.preventDefault();
+      const element = formRef.current?.querySelector(`[data-lead-field="${firstInvalid}"]`);
       if (element instanceof HTMLElement) element.focus();
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      await submitLead(data);
-      router.push("/thank-you");
-    } catch {
-      setSubmitError("Something went wrong. Please try again.");
-      setIsSubmitting(false);
-    }
+    setIsSubmitting(true);
   }
 
   return (
-    <section id="book" className="scroll-mt-4 bg-page py-16 sm:py-24" aria-labelledby="book-heading">
+    <section
+      ref={rootRef}
+      id="book"
+      className={`ff-${flodeskFormId} scroll-mt-4 bg-page py-16 sm:py-24`}
+      aria-labelledby="book-heading"
+      data-ff-el="root"
+      data-ff-version="3"
+      data-ff-type="inline"
+      data-ff-name="inlineNoImage"
+      data-ff-stage="default"
+    >
+      <div data-ff-el="config" data-ff-config={flodeskConfig} hidden />
       <div className="section-shell grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <div className="lg:sticky lg:top-8">
           <span className="text-sm font-extrabold uppercase tracking-[0.14em] text-dark-teal">Your next step</span>
@@ -96,20 +169,28 @@ export function CTAForm() {
           <p className="mt-7 max-w-md leading-7 text-muted-ink">Fill in the form below. I&apos;ll contact you on WhatsApp to confirm your call.</p>
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} noValidate className="rounded-[2rem] border border-brand-border bg-white p-5 shadow-[0_22px_60px_rgb(6_43_80/9%)] sm:p-8">
-          <div className="grid gap-5 sm:grid-cols-2">
+        <form
+          ref={formRef}
+          action={flodeskSubmitUrl}
+          method="post"
+          onSubmit={handleSubmit}
+          noValidate
+          data-ff-el="form"
+          className="rounded-[2rem] border border-brand-border bg-white p-5 shadow-[0_22px_60px_rgb(6_43_80/9%)] sm:p-8"
+        >
+          <div className="grid gap-5 sm:grid-cols-2" data-ff-el="content">
             {fields.map((field) => {
               const error = errors[field.name];
               const errorId = `${field.name}-error`;
               return (
                 <div key={field.name} className={field.name === "website" ? "sm:col-span-2" : ""}>
-                  <label htmlFor={field.name} className="mb-2 block text-sm font-bold text-navy">
+                  <label htmlFor={`ff-${flodeskFormId}-${field.flodeskId}`} className="mb-2 block text-sm font-bold text-navy">
                     {field.label}
                     {field.required ? <span className="ml-1 text-error" aria-hidden="true">*</span> : <span className="ml-1 font-normal text-muted-ink">(optional)</span>}
                   </label>
                   <input
-                    id={field.name}
-                    name={field.name}
+                    id={`ff-${flodeskFormId}-${field.flodeskId}`}
+                    name={field.flodeskName}
                     type={field.type ?? "text"}
                     required={field.required}
                     autoComplete={field.autoComplete}
@@ -119,6 +200,8 @@ export function CTAForm() {
                     placeholder={field.placeholder}
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? errorId : undefined}
+                    data-ff-tab={field.flodeskTab}
+                    data-lead-field={field.name}
                     className="min-h-12 w-full rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60 aria-invalid:border-error"
                   />
                   {error ? <p id={errorId} className="mt-2 text-sm font-semibold text-error">{error}</p> : null}
@@ -127,27 +210,33 @@ export function CTAForm() {
             })}
 
             <div className="sm:col-span-2">
-              <label htmlFor="message" className="mb-2 block text-sm font-bold text-navy">
+              <label htmlFor={`ff-${flodeskFormId}-NHe4lgTkNx`} className="mb-2 block text-sm font-bold text-navy">
                 Anything You Want to Say <span className="ml-1 font-normal text-muted-ink">(optional)</span>
               </label>
               <textarea
-                id="message"
-                name="message"
+                id={`ff-${flodeskFormId}-NHe4lgTkNx`}
+                name="fields.anythingYouWantToSay"
                 rows={5}
                 value={data.message}
                 onChange={(event) => updateField("message", event.target.value)}
                 onBlur={() => handleBlur("message")}
                 placeholder="Share anything that will help me understand your business."
+                data-ff-tab="fields.anythingYouWantToSay:fields.websiteOrFacebookUrl:submit"
+                data-lead-field="message"
                 className="min-h-32 w-full resize-y rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60"
               />
             </div>
           </div>
 
+          <input type="text" name="confirm_email_address" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+
           {submitError ? <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-error">{submitError}</p> : null}
-          <button type="submit" disabled={isSubmitting} className="primary-cta mt-6 w-full" aria-live="polite">
+          <button type="submit" disabled={isSubmitting} className="primary-cta mt-6 w-full" aria-live="polite" data-ff-el="submit" data-ff-tab="submit">
             {isSubmitting ? "Submitting…" : "Book Free Consultation"}
           </button>
           <p className="mt-4 text-center text-sm text-muted-ink">We respect your privacy. No spam.</p>
+          <div data-ff-el="success" className="hidden" aria-hidden="true" />
+          <div data-ff-el="error" className="hidden" aria-hidden="true" />
         </form>
       </div>
     </section>
