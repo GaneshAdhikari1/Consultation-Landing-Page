@@ -7,18 +7,8 @@ import { validateField, validateLead } from "@/lib/validation";
 import type { LeadData, LeadErrors, LeadField } from "@/lib/validation";
 
 const flodeskFormId = "6ae708aee178d975eb35d0ac";
-const flodeskRootSelector = `.ff-${flodeskFormId}`;
 const flodeskSubmitUrl = `https://form.flodesk.com/forms/${flodeskFormId}/submit`;
-const flodeskConfig = "eyJ0cmlnZ2VyIjp7Im1vZGUiOiJpbW1lZGlhdGVseSIsInZhbHVlIjowfSwib25TdWNjZXNzIjp7Im1vZGUiOiJyZWRpcmVjdCIsIm1lc3NhZ2UiOiIiLCJyZWRpcmVjdFVybCI6Imh0dHBzOi8vY29uc3VsdGF0aW9uLmdhbmVzaGFkaGlrYXJpMS5jb20ubnAvdGhhbmsteW91In0sImNvaSI6dHJ1ZSwic2hvd0ZvclJldHVyblZpc2l0b3JzIjp0cnVlLCJub3RpZmljYXRpb24iOnRydWUsImdkcHIiOnsiYWNjZXB0c01hcmtldGluZyI6ZmFsc2UsInByaXZhY3lQb2xpY3kiOnsiZW5hYmxlZCI6ZmFsc2UsIm1hbmRhdG9yeSI6ZmFsc2V9fSwidHJhY2tpbmdDb25maWciOnsibWV0YVBpeGVsSWQiOiIiLCJjb29raWVCYW5uZXJFbmFibGVkIjpmYWxzZSwiZ29vZ2xlQW5hbHl0aWNzSWQiOiIifX0=";
-
-type FlodeskFunction = ((...args: unknown[]) => void) & { q?: unknown[][] };
-
-declare global {
-  interface Window {
-    FlodeskObject?: string;
-    fd?: FlodeskFunction;
-  }
-}
+const flodeskFrameName = "flodesk-consultation-submit";
 
 const initialData: LeadData = {
   fullName: "",
@@ -53,61 +43,19 @@ const fields: FieldConfig[] = [
 
 export function CTAForm() {
   const router = useRouter();
-  const rootRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const submissionStartedRef = useRef(false);
+  const submissionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [data, setData] = useState(initialData);
   const [errors, setErrors] = useState<LeadErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
-    window.FlodeskObject = "fd";
-
-    if (!window.fd) {
-      const fd: FlodeskFunction = (...args: unknown[]) => {
-        fd.q = fd.q ?? [];
-        fd.q.push(args);
-      };
-      window.fd = fd;
-    }
-
-    const cacheVersion = Math.floor(Date.now() / 120000) * 60;
-    if (!document.querySelector('script[data-flodesk-universal="module"]')) {
-      const moduleScript = document.createElement("script");
-      moduleScript.async = true;
-      moduleScript.type = "module";
-      moduleScript.src = `https://assets.flodesk.com/universal.mjs?v=${cacheVersion}`;
-      moduleScript.dataset.flodeskUniversal = "module";
-      document.head.appendChild(moduleScript);
-
-      const legacyScript = document.createElement("script");
-      legacyScript.async = true;
-      legacyScript.noModule = true;
-      legacyScript.src = `https://assets.flodesk.com/universal.js?v=${cacheVersion}`;
-      legacyScript.dataset.flodeskUniversal = "legacy";
-      document.head.appendChild(legacyScript);
-    }
-
-    window.fd("form:handle", {
-      formId: flodeskFormId,
-      rootEl: flodeskRootSelector,
-    });
-
-    const root = rootRef.current;
-    if (!root) return;
-
-    const observer = new MutationObserver(() => {
-      const stage = root.dataset.ffStage;
-      if (stage === "success") {
-        router.push("/thank-you");
-      } else if (stage === "error") {
-        setIsSubmitting(false);
-        setSubmitError("Flodesk could not save your information. Please try again.");
-      }
-    });
-    observer.observe(root, { attributes: true, attributeFilter: ["data-ff-stage"] });
-    return () => observer.disconnect();
-  }, [router]);
+    return () => {
+      if (submissionTimeoutRef.current) clearTimeout(submissionTimeoutRef.current);
+    };
+  }, []);
 
   function updateField(field: LeadField, value: string) {
     setData((current) => ({ ...current, [field]: value }));
@@ -138,22 +86,28 @@ export function CTAForm() {
       return;
     }
 
+    submissionStartedRef.current = true;
     setIsSubmitting(true);
+    submissionTimeoutRef.current = setTimeout(() => {
+      submissionStartedRef.current = false;
+      setIsSubmitting(false);
+      setSubmitError("The submission timed out. Please check your connection and try again.");
+    }, 20000);
+  }
+
+  function handleFlodeskLoad() {
+    if (!submissionStartedRef.current) return;
+    submissionStartedRef.current = false;
+    if (submissionTimeoutRef.current) clearTimeout(submissionTimeoutRef.current);
+    router.push("/thank-you");
   }
 
   return (
     <section
-      ref={rootRef}
       id="book"
-      className={`ff-${flodeskFormId} scroll-mt-4 bg-page py-16 sm:py-24`}
+      className="scroll-mt-4 bg-page py-16 sm:py-24"
       aria-labelledby="book-heading"
-      data-ff-el="root"
-      data-ff-version="3"
-      data-ff-type="inline"
-      data-ff-name="inlineNoImage"
-      data-ff-stage="default"
     >
-      <div data-ff-el="config" data-ff-config={flodeskConfig} hidden />
       <div className="section-shell grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <div className="lg:sticky lg:top-8">
           <span className="text-sm font-extrabold uppercase tracking-[0.14em] text-dark-teal">Your next step</span>
@@ -173,6 +127,7 @@ export function CTAForm() {
           ref={formRef}
           action={flodeskSubmitUrl}
           method="post"
+          target={flodeskFrameName}
           onSubmit={handleSubmit}
           noValidate
           data-ff-el="form"
@@ -238,6 +193,12 @@ export function CTAForm() {
           <div data-ff-el="success" className="hidden" aria-hidden="true" />
           <div data-ff-el="error" className="hidden" aria-hidden="true" />
         </form>
+        <iframe
+          name={flodeskFrameName}
+          title="Flodesk form submission"
+          className="hidden"
+          onLoad={handleFlodeskLoad}
+        />
       </div>
     </section>
   );
