@@ -34,7 +34,7 @@ const highlights = ["One-to-One Consultation", "Customized Strategy for Your Bus
 type FieldConfig = {
   name: LeadField;
   flodeskId: string;
-  flodeskName: string;
+  flodeskName?: string;
   flodeskTab: string;
   label: string;
   placeholder: string;
@@ -46,9 +46,9 @@ type FieldConfig = {
 const fields: FieldConfig[] = [
   { name: "fullName", flodeskId: "firstName", flodeskName: "firstName", flodeskTab: "firstName::email", label: "Full Name", placeholder: "Your full name", required: true, autoComplete: "name" },
   { name: "email", flodeskId: "email", flodeskName: "email", flodeskTab: "email:firstName:fields.", label: "Active Email", placeholder: "you@example.com", type: "email", required: true, autoComplete: "email" },
-  { name: "whatsapp", flodeskId: "cOweKA8tCR", flodeskName: "fields.", flodeskTab: "fields.:email:fields.", label: "WhatsApp Number", placeholder: "+977 98XXXXXXXX", type: "tel", required: true, autoComplete: "tel" },
-  { name: "businessName", flodeskId: "7Z8bWaojpg", flodeskName: "fields.", flodeskTab: "fields.:email:fields.", label: "Business Name", placeholder: "Your business name", required: true, autoComplete: "organization" },
-  { name: "website", flodeskId: "YjkrKLUYYf", flodeskName: "fields.websiteOrFacebookUrl", flodeskTab: "fields.websiteOrFacebookUrl:fields.:fields.anythingYouWantToSay", label: "Website or Facebook URL", placeholder: "yourbusiness.com or facebook.com/yourpage", type: "url" },
+  { name: "whatsapp", flodeskId: "cOweKA8tCR", flodeskTab: "whatsapp:email:businessName", label: "WhatsApp Number", placeholder: "+977 98XXXXXXXX", type: "tel", required: true, autoComplete: "tel" },
+  { name: "businessName", flodeskId: "7Z8bWaojpg", flodeskTab: "businessName:whatsapp:fields.websiteOrFacebookUrl", label: "Business Name", placeholder: "Your business name", required: true, autoComplete: "organization" },
+  { name: "website", flodeskId: "YjkrKLUYYf", flodeskName: "fields.websiteOrFacebookUrl", flodeskTab: "fields.websiteOrFacebookUrl:businessName:message", label: "Website or Facebook URL", placeholder: "yourbusiness.com or facebook.com/yourpage", type: "url", required: true },
 ];
 
 export function CTAForm() {
@@ -251,19 +251,23 @@ export function CTAForm() {
               </label>
               <textarea
                 id={`ff-${flodeskFormId}-NHe4lgTkNx`}
-                name="fields.anythingYouWantToSay"
                 rows={5}
                 value={data.message}
                 onChange={(event) => updateField("message", event.target.value)}
                 onBlur={() => handleBlur("message")}
                 placeholder="Share anything that will help me understand your business."
-                data-ff-tab="fields.anythingYouWantToSay:fields.websiteOrFacebookUrl:submit"
+                data-ff-tab="message:fields.websiteOrFacebookUrl:submit"
                 data-lead-field="message"
                 className={`ff-${flodeskFormId}__control fd-form-control min-h-32 w-full resize-y rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60`}
               />
             </div>
           </div>
 
+          <input
+            type="hidden"
+            name="fields.anythingYouWantToSay"
+            value={`Business Name: ${data.businessName}\nWhatsApp Number: ${data.whatsapp}\nMessage: ${data.message || "—"}`}
+          />
           <input type="text" name="confirm_email_address" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
 
           <div className={`ff-${flodeskFormId}__footer`} data-ff-el="footer">

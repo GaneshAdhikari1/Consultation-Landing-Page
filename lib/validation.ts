@@ -26,7 +26,7 @@ function resemblesUrl(value: string) {
 export function validateField(field: LeadField, value: string): string | undefined {
   const trimmed = value.trim();
 
-  if (["fullName", "email", "whatsapp", "businessName"].includes(field) && !trimmed) {
+  if (["fullName", "email", "whatsapp", "businessName", "website"].includes(field) && !trimmed) {
     return "This field is required.";
   }
   if (field === "email" && trimmed && !emailPattern.test(trimmed)) {
