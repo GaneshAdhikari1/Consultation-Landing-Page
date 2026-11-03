@@ -95,10 +95,7 @@ export function CTAForm() {
       });
       if (!captcha) return;
 
-      let captchaContainer: HTMLElement = captcha;
-      while (captchaContainer.parentElement && captchaContainer.parentElement !== footer && captchaContainer.parentElement !== form) {
-        captchaContainer = captchaContainer.parentElement;
-      }
+      const captchaContainer = captcha.closest<HTMLElement>("label") ?? captcha.parentElement ?? captcha;
       if (!captchaContainer.classList.contains("flodesk-captcha")) {
         captchaContainer.classList.add("flodesk-captcha");
       }

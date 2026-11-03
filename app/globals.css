@@ -161,10 +161,29 @@ textarea:focus-visible {
 
 .flodesk-captcha {
   display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
   justify-content: center;
+  gap: 0.625rem;
   margin-top: 1.25rem;
   margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--neutral-border);
+  border-radius: 0.75rem;
+  background: var(--page-background);
+  color: var(--primary-navy);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
   text-align: center;
+}
+
+.flodesk-captcha input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--brand-teal);
 }
 
 .section-shell {
