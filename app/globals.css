@@ -186,6 +186,17 @@ textarea:focus-visible {
   accent-color: var(--brand-teal);
 }
 
+.flodesk-runtime {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 620px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .section-shell {
   width: min(100% - 2rem, 70rem);
   margin-inline: auto;

@@ -7,9 +7,15 @@ import { validateField, validateLead } from "@/lib/validation";
 import type { LeadData, LeadErrors, LeadField } from "@/lib/validation";
 
 const flodeskFormId = "6ae708aee178d975eb35d0ac";
-const flodeskRootSelector = `.ff-${flodeskFormId}`;
-const flodeskSubmitUrl = `https://form.flodesk.com/forms/${flodeskFormId}/submit`;
-const flodeskConfig = "eyJ0cmlnZ2VyIjp7Im1vZGUiOiJpbW1lZGlhdGVseSIsInZhbHVlIjowfSwib25TdWNjZXNzIjp7Im1vZGUiOiJyZWRpcmVjdCIsIm1lc3NhZ2UiOiIiLCJyZWRpcmVjdFVybCI6Imh0dHBzOi8vY29uc3VsdGF0aW9uLmdhbmVzaGFkaGlrYXJpMS5jb20ubnAvdGhhbmsteW91In0sImNvaSI6dHJ1ZSwic2hvd0ZvclJldHVyblZpc2l0b3JzIjp0cnVlLCJub3RpZmljYXRpb24iOnRydWUsImdkcHIiOnsiYWNjZXB0c01hcmtldGluZyI6ZmFsc2UsInByaXZhY3lQb2xpY3kiOnsiZW5hYmxlZCI6ZmFsc2UsIm1hbmRhdG9yeSI6ZmFsc2V9fSwidHJhY2tpbmdDb25maWciOnsibWV0YVBpeGVsSWQiOiIiLCJjb29raWVCYW5uZXJFbmFibGVkIjpmYWxzZSwiZ29vZ2xlQW5hbHl0aWNzSWQiOiIifX0=";
+
+const flodeskFieldIds: Record<LeadField, string> = {
+  fullName: "firstName",
+  email: "email",
+  whatsapp: "cOweKA8tCR",
+  businessName: "7Z8bWaojpg",
+  website: "YjkrKLUYYf",
+  message: "NHe4lgTkNx",
+};
 
 type FlodeskFunction = ((command: string, options?: Record<string, unknown>) => void) & { q?: unknown[][] };
 
@@ -33,9 +39,6 @@ const highlights = ["One-to-One Consultation", "Customized Strategy for Your Bus
 
 type FieldConfig = {
   name: LeadField;
-  flodeskId: string;
-  flodeskName?: string;
-  flodeskTab: string;
   label: string;
   placeholder: string;
   type?: string;
@@ -44,17 +47,17 @@ type FieldConfig = {
 };
 
 const fields: FieldConfig[] = [
-  { name: "fullName", flodeskId: "firstName", flodeskName: "firstName", flodeskTab: "firstName::email", label: "Full Name", placeholder: "Your full name", required: true, autoComplete: "name" },
-  { name: "email", flodeskId: "email", flodeskName: "email", flodeskTab: "email:firstName:fields.whatsAppNumber", label: "Active Email", placeholder: "you@example.com", type: "email", required: true, autoComplete: "email" },
-  { name: "whatsapp", flodeskId: "cOweKA8tCR", flodeskName: "fields.whatsAppNumber", flodeskTab: "fields.whatsAppNumber:email:fields.businessName", label: "WhatsApp Number", placeholder: "+977 98XXXXXXXX", type: "tel", required: true, autoComplete: "tel" },
-  { name: "businessName", flodeskId: "7Z8bWaojpg", flodeskName: "fields.businessName", flodeskTab: "fields.businessName:fields.whatsAppNumber:fields.websiteOrFacebookUrl", label: "Business Name", placeholder: "Your business name", required: true, autoComplete: "organization" },
-  { name: "website", flodeskId: "YjkrKLUYYf", flodeskName: "fields.websiteOrFacebookUrl", flodeskTab: "fields.websiteOrFacebookUrl:fields.businessName:fields.anythingYouWantToSay", label: "Website or Facebook URL", placeholder: "yourbusiness.com or facebook.com/yourpage", type: "url", required: true },
+  { name: "fullName", label: "Full Name", placeholder: "Your full name", required: true, autoComplete: "name" },
+  { name: "email", label: "Active Email", placeholder: "you@example.com", type: "email", required: true, autoComplete: "email" },
+  { name: "whatsapp", label: "WhatsApp Number", placeholder: "+977 98XXXXXXXX", type: "tel", required: true, autoComplete: "tel" },
+  { name: "businessName", label: "Business Name", placeholder: "Your business name", required: true, autoComplete: "organization" },
+  { name: "website", label: "Website or Facebook URL", placeholder: "yourbusiness.com or facebook.com/yourpage", type: "url", required: true },
 ];
 
 export function CTAForm() {
   const router = useRouter();
-  const rootRef = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const runtimeRef = useRef<HTMLDivElement>(null);
   const flodeskInitStartedRef = useRef(false);
   const submissionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [data, setData] = useState(initialData);
@@ -76,25 +79,31 @@ export function CTAForm() {
       window.fd = fd;
     }
 
-    const root = rootRef.current;
+    const runtime = runtimeRef.current;
+    const getRuntimeRoot = () => runtime?.querySelector<HTMLElement>('[data-ff-el="root"]') ?? null;
     const markReady = () => {
-      if (root?.dataset.ffHandleStatus === "initialized") {
+      if (getRuntimeRoot()?.dataset.ffHandleStatus === "initialized") {
         setIsFlodeskReady(true);
         setSubmitError("");
       }
     };
     const positionCaptcha = () => {
       const form = formRef.current;
-      const footer = form?.querySelector<HTMLElement>('[data-ff-el="footer"]');
-      const submit = form?.querySelector<HTMLButtonElement>('[data-ff-el="submit"]');
-      if (!form || !footer || !submit) return;
+      const footer = form?.querySelector<HTMLElement>("[data-visible-footer]");
+      const submit = form?.querySelector<HTMLButtonElement>("[data-visible-submit]");
+      if (!runtime || !footer || !submit) return;
 
-      const captcha = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).find((checkbox) => {
+      const captcha = Array.from(runtime.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).find((checkbox) => {
         const labelText = Array.from(checkbox.labels ?? []).map((label) => label.textContent ?? "").join(" ");
         return /not a robot/i.test(`${labelText} ${checkbox.parentElement?.textContent ?? ""}`);
       });
       if (!captcha) return;
 
+      const runtimeForm = captcha.closest("form");
+      if (runtimeForm) {
+        runtimeForm.id = `fd-runtime-form-${flodeskFormId}`;
+        captcha.setAttribute("form", runtimeForm.id);
+      }
       const captchaContainer = captcha.closest<HTMLElement>("label") ?? captcha.parentElement ?? captcha;
       if (!captchaContainer.classList.contains("flodesk-captcha")) {
         captchaContainer.classList.add("flodesk-captcha");
@@ -109,9 +118,9 @@ export function CTAForm() {
     };
     window.addEventListener("formHandled", markReady);
 
-    window.fd("form:handle", {
+    window.fd("form", {
       formId: flodeskFormId,
-      rootEl: flodeskRootSelector,
+      containerEl: `#fd-runtime-${flodeskFormId}`,
     });
 
     if (!document.querySelector('script[data-flodesk-universal="module"]')) {
@@ -134,11 +143,11 @@ export function CTAForm() {
       document.head.appendChild(legacyScript);
     }
 
-    const observer = root
+    const observer = runtime
       ? new MutationObserver(() => {
           markReady();
           positionCaptcha();
-          const stage = root.dataset.ffStage;
+          const stage = getRuntimeRoot()?.dataset.ffStage;
           if (stage === "success") {
             if (submissionTimeoutRef.current) clearTimeout(submissionTimeoutRef.current);
             router.push("/thank-you");
@@ -149,9 +158,8 @@ export function CTAForm() {
           }
         })
       : null;
-    observer?.observe(root!, {
+    observer?.observe(runtime!, {
       attributes: true,
-      attributeFilter: ["data-ff-stage", "data-ff-handle-status"],
       childList: true,
       subtree: true,
     });
@@ -177,13 +185,13 @@ export function CTAForm() {
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     if (isSubmitting) {
-      event.preventDefault();
       return;
     }
 
     if (!isFlodeskReady) {
-      event.preventDefault();
       setSubmitError("The secure form is still loading. Please wait a moment and try again.");
       return;
     }
@@ -194,32 +202,47 @@ export function CTAForm() {
     const firstInvalid = (Object.keys(data) as LeadField[]).find((field) => nextErrors[field]);
 
     if (firstInvalid) {
-      event.preventDefault();
       const element = formRef.current?.querySelector(`[data-lead-field="${firstInvalid}"]`);
       if (element instanceof HTMLElement) element.focus();
       return;
     }
 
-    setIsSubmitting(true);
-    submissionTimeoutRef.current = setTimeout(() => {
+    const runtimeForm = runtimeRef.current?.querySelector<HTMLFormElement>('form[data-ff-el="form"]');
+    if (!runtimeForm) {
+      setSubmitError("The secure form did not finish loading. Please refresh and try again.");
+      setIsFlodeskReady(false);
+      return;
+    }
+
+    try {
+      for (const field of Object.keys(flodeskFieldIds) as LeadField[]) {
+        const control = runtimeRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          `#ff-${flodeskFormId}-${flodeskFieldIds[field]}`,
+        );
+        if (!control) throw new Error(`Missing Flodesk field: ${field}`);
+        control.value = data[field];
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+        control.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      setIsSubmitting(true);
+      submissionTimeoutRef.current = setTimeout(() => {
+        setIsSubmitting(false);
+        setSubmitError("Flodesk did not confirm the submission. Please check your connection and try again.");
+      }, 25000);
+      runtimeForm.requestSubmit();
+    } catch {
       setIsSubmitting(false);
-      setSubmitError("Flodesk did not confirm the submission. Please check your connection and try again.");
-    }, 20000);
+      setSubmitError("The secure form could not prepare your information. Please refresh and try again.");
+    }
   }
 
   return (
     <section
-      ref={rootRef}
       id="book"
-      className={`ff-${flodeskFormId} scroll-mt-4 bg-page py-16 sm:py-24`}
+      className="scroll-mt-4 bg-page py-16 sm:py-24"
       aria-labelledby="book-heading"
-      data-ff-el="root"
-      data-ff-version="3"
-      data-ff-type="inline"
-      data-ff-name="inlineNoImage"
-      data-ff-stage="default"
     >
-      <div data-ff-el="config" data-ff-config={flodeskConfig} hidden />
       <div className="section-shell grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
         <div className="lg:sticky lg:top-8">
           <span className="text-sm font-extrabold uppercase tracking-[0.14em] text-dark-teal">Your next step</span>
@@ -237,27 +260,23 @@ export function CTAForm() {
 
         <form
           ref={formRef}
-          action={flodeskSubmitUrl}
-          method="post"
           onSubmit={handleSubmit}
           noValidate
-          data-ff-el="form"
-          className={`ff-${flodeskFormId}__form rounded-[2rem] border border-brand-border bg-white p-5 shadow-[0_22px_60px_rgb(6_43_80/9%)] sm:p-8`}
+          className="rounded-[2rem] border border-brand-border bg-white p-5 shadow-[0_22px_60px_rgb(6_43_80/9%)] sm:p-8"
         >
-          <div className={`ff-${flodeskFormId}__content fd-form-content`} data-ff-el="content">
-          <div className={`ff-${flodeskFormId}__fields grid gap-5 sm:grid-cols-2`} data-ff-el="fields">
+          <div>
+          <div className="grid gap-5 sm:grid-cols-2">
             {fields.map((field) => {
               const error = errors[field.name];
               const errorId = `${field.name}-error`;
               return (
-                <div key={field.name} className={`ff-${flodeskFormId}__field fd-form-group ${field.name === "website" ? "sm:col-span-2" : ""}`}>
-                  <label htmlFor={`ff-${flodeskFormId}-${field.flodeskId}`} className="mb-2 block text-sm font-bold text-navy">
+                <div key={field.name} className={field.name === "website" ? "sm:col-span-2" : ""}>
+                  <label htmlFor={`lead-${field.name}`} className="mb-2 block text-sm font-bold text-navy">
                     {field.label}
                     {field.required ? <span className="ml-1 text-error" aria-hidden="true">*</span> : <span className="ml-1 font-normal text-muted-ink">(optional)</span>}
                   </label>
                   <input
-                    id={`ff-${flodeskFormId}-${field.flodeskId}`}
-                    name={field.flodeskName}
+                    id={`lead-${field.name}`}
                     type={field.type ?? "text"}
                     required={field.required}
                     autoComplete={field.autoComplete}
@@ -267,49 +286,43 @@ export function CTAForm() {
                     placeholder={field.placeholder}
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? errorId : undefined}
-                    data-ff-tab={field.flodeskTab}
                     data-lead-field={field.name}
-                    className={`ff-${flodeskFormId}__control fd-form-control min-h-12 w-full rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60 aria-invalid:border-error`}
+                    className="min-h-12 w-full rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60 aria-invalid:border-error"
                   />
                   {error ? <p id={errorId} className="mt-2 text-sm font-semibold text-error">{error}</p> : null}
                 </div>
               );
             })}
 
-            <div className={`ff-${flodeskFormId}__field fd-form-group sm:col-span-2`}>
-              <label htmlFor={`ff-${flodeskFormId}-NHe4lgTkNx`} className="mb-2 block text-sm font-bold text-navy">
+            <div className="sm:col-span-2">
+              <label htmlFor="lead-message" className="mb-2 block text-sm font-bold text-navy">
                 Anything You Want to Say <span className="ml-1 font-normal text-muted-ink">(optional)</span>
               </label>
               <textarea
-                id={`ff-${flodeskFormId}-NHe4lgTkNx`}
+                id="lead-message"
                 rows={5}
                 value={data.message}
                 onChange={(event) => updateField("message", event.target.value)}
                 onBlur={() => handleBlur("message")}
                 placeholder="Share anything that will help me understand your business."
-                data-ff-tab="fields.anythingYouWantToSay:fields.websiteOrFacebookUrl:submit"
                 data-lead-field="message"
-                className={`ff-${flodeskFormId}__control fd-form-control min-h-32 w-full resize-y rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60`}
+                className="min-h-32 w-full resize-y rounded-xl border border-brand-border bg-white px-4 py-3 text-base text-ink placeholder:text-slate-400 hover:border-teal/60"
               />
             </div>
           </div>
 
-          <input type="hidden" name="fields.anythingYouWantToSay" value={data.message} />
-          <input type="text" name="confirm_email_address" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
-
-          <div className={`ff-${flodeskFormId}__footer`} data-ff-el="footer">
+          <div data-visible-footer>
             {submitError ? <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-error">{submitError}</p> : null}
-            <button type="submit" disabled={!isFlodeskReady || isSubmitting} className={`ff-${flodeskFormId}__button fd-btn primary-cta mt-6 w-full`} aria-live="polite" data-ff-el="submit" data-ff-tab="submit">
+            <button type="submit" disabled={!isFlodeskReady || isSubmitting} className="primary-cta mt-6 w-full" aria-live="polite" data-visible-submit>
               {!isFlodeskReady ? "Loading secure form…" : isSubmitting ? "Submitting…" : "Book Free Consultation"}
             </button>
             <p className="mt-4 text-center text-sm text-muted-ink">We respect your privacy. No spam.</p>
           </div>
           </div>
 
-          <div data-ff-el="success" className={`ff-${flodeskFormId}__success fd-form-success hidden`} aria-hidden="true" />
-          <div data-ff-el="error" className={`ff-${flodeskFormId}__error fd-form-error`} aria-live="polite" />
         </form>
       </div>
+      <div ref={runtimeRef} id={`fd-runtime-${flodeskFormId}`} className="flodesk-runtime" aria-hidden="true" />
     </section>
   );
 }
