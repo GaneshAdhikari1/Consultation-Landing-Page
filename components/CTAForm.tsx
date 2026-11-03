@@ -7,15 +7,7 @@ import { validateField, validateLead } from "@/lib/validation";
 import type { LeadData, LeadErrors, LeadField } from "@/lib/validation";
 
 const flodeskFormId = "6ae708aee178d975eb35d0ac";
-
-const flodeskFieldIds: Record<LeadField, string> = {
-  fullName: "firstName",
-  email: "email",
-  whatsapp: "cOweKA8tCR",
-  businessName: "7Z8bWaojpg",
-  website: "YjkrKLUYYf",
-  message: "NHe4lgTkNx",
-};
+const flodeskFieldOrder: LeadField[] = ["fullName", "email", "whatsapp", "businessName", "website", "message"];
 
 type FlodeskFunction = ((command: string, options?: Record<string, unknown>) => void) & { q?: unknown[][] };
 
@@ -215,15 +207,22 @@ export function CTAForm() {
     }
 
     try {
-      for (const field of Object.keys(flodeskFieldIds) as LeadField[]) {
-        const control = runtimeRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-          `#ff-${flodeskFormId}-${flodeskFieldIds[field]}`,
-        );
-        if (!control) throw new Error(`Missing Flodesk field: ${field}`);
+      const activeControls = Array.from(
+        runtimeForm.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(".fd-form-control"),
+      ).filter((control) => {
+        const group = control.closest<HTMLElement>(".fd-form-group");
+        return group && window.getComputedStyle(group).display !== "none";
+      });
+      if (activeControls.length !== flodeskFieldOrder.length) {
+        throw new Error("Flodesk returned an unexpected field layout");
+      }
+
+      flodeskFieldOrder.forEach((field, index) => {
+        const control = activeControls[index];
         control.value = data[field];
         control.dispatchEvent(new Event("input", { bubbles: true }));
         control.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      });
 
       setIsSubmitting(true);
       submissionTimeoutRef.current = setTimeout(() => {
