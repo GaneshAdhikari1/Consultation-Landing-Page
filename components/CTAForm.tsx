@@ -282,7 +282,6 @@ export function CTAForm() {
               </label>
               <textarea
                 id={`ff-${flodeskFormId}-NHe4lgTkNx`}
-                name="fields.anythingYouWantToSay"
                 rows={5}
                 value={data.message}
                 onChange={(event) => updateField("message", event.target.value)}
@@ -295,6 +294,7 @@ export function CTAForm() {
             </div>
           </div>
 
+          <input type="hidden" name="fields.anythingYouWantToSay" value={data.message} />
           <input type="text" name="confirm_email_address" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
 
           <div className={`ff-${flodeskFormId}__footer`} data-ff-el="footer">
